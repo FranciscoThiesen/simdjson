@@ -433,6 +433,14 @@ public:
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
 
   /**
+   * Checks whether the document is a string.
+   *
+   * @returns true if the type is string
+   * @error TAPE_ERROR when the JSON value is a bad token like "}" "," or "alse".
+   */
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
+
+  /**
    * Checks whether the document is a negative number.
    *
    * @returns true if the number if negative.
@@ -579,6 +587,14 @@ public:
    *   auto doc = parser.iterate(json);
    *   doc.at_pointer("//a/1") == 20
    *
+   * Key values are matched exactly, without unescaping or Unicode normalization.
+   * We do a byte-by-byte comparison. E.g.
+   *
+   *   const padded_string json = "{\"\\u00E9\":123}"_padded;
+   *   auto doc = parser.iterate(json);
+   *   doc.at_pointer("/\\u00E9") == 123
+   *   doc.at_pointer((const char*)u8"/\u00E9") returns an error (NO_SUCH_FIELD)
+   *
    * Note that at_pointer() automatically calls rewind between each call. Thus
    * all values, objects and arrays that you have created so far (including unescaped strings)
    * are invalidated. After calling at_pointer, you need to consume the result: string values
@@ -597,12 +613,22 @@ public:
   simdjson_inline simdjson_result<value> at_pointer(std::string_view json_pointer) noexcept;
 
   /**
-   * Get the value associated with the given JSON path. Right now we are only
-   * supporting a subset of json path that is easily convertible to json
-   * pointer.
+   * Get the value associated with the given JSONPath expression. We only support
+   * JSONPath queries that trivially convertible to JSON Pointer queries: key
+   * names and array indices.
    *
-   * @return The value associated with the given JSON path, or:
-   *         - INVALID_JSON_POINTER if the json path to json pointer conversion fails
+   * https://datatracker.ietf.org/doc/html/draft-normington-jsonpath-00
+   *
+   * Key values are matched exactly, without unescaping or Unicode normalization.
+   * We do a byte-by-byte comparison. E.g.
+   *
+   *   const padded_string json = "{\"\\u00E9\":123}"_padded;
+   *   auto doc = parser.iterate(json);
+   *   doc.at_path(".\\u00E9") == 123
+   *   doc.at_path((const char*)u8".\u00E9") returns an error (NO_SUCH_FIELD)
+   *
+   * @return The value associated with the given JSONPath expression, or:
+   *         - INVALID_JSON_POINTER if the JSONPath to JSON Pointer conversion fails
    *         - NO_SUCH_FIELD if a field does not exist in an object
    *         - INDEX_OUT_OF_BOUNDS if an array index is larger than an array length
    *         - INCORRECT_TYPE if a non-integer is used to access an array
@@ -704,6 +730,7 @@ public:
 
   simdjson_inline simdjson_result<json_type> type() noexcept;
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
 
   simdjson_inline simdjson_result<const char *> current_location() noexcept;
   simdjson_inline int32_t current_depth() const noexcept;
@@ -780,6 +807,7 @@ public:
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::ondemand::value> find_field_unordered(const char *key) & noexcept;
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::ondemand::json_type> type() noexcept;
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
   simdjson_inline simdjson_result<const char *> current_location() noexcept;
   simdjson_inline int32_t current_depth() const noexcept;
   simdjson_inline bool at_end() const noexcept;
@@ -850,6 +878,7 @@ public:
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::ondemand::value> find_field_unordered(const char *key) & noexcept;
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::ondemand::json_type> type() noexcept;
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
   simdjson_inline simdjson_result<const char *> current_location() noexcept;
   simdjson_inline simdjson_result<int32_t> current_depth() const noexcept;
   simdjson_inline simdjson_result<bool> is_negative() noexcept;

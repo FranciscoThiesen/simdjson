@@ -401,6 +401,13 @@ public:
    * @error TAPE_ERROR when the JSON value is a bad token like "}" "," or "alse".
    */
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
+  /**
+   * Checks whether the value is a string.
+   *
+   * @returns true if the type is string
+   * @error TAPE_ERROR when the JSON value is a bad token like "}" "," or "alse".
+   */
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
 
   /**
    * Checks whether the value is a negative number.
@@ -577,12 +584,12 @@ public:
   simdjson_inline simdjson_result<value> at_pointer(std::string_view json_pointer) noexcept;
 
   /**
-   * Get the value associated with the given JSON path. Right now we are only
-   * supporting a subset of json path that is easily convertible to json
-   * pointer.
+   * Get the value associated with the given JSONPath expression. We only support
+   * JSONPath queries that trivially convertible to JSON Pointer queries: key
+   * names and array indices.
    *
-   * @return The value associated with the given JSON path, or:
-   *         - INVALID_JSON_POINTER if the json path to json pointer conversion fails
+   * @return The value associated with the given JSONPath expression, or:
+   *         - INVALID_JSON_POINTER if the JSONPath to JSON Pointer conversion fails
    *         - NO_SUCH_FIELD if a field does not exist in an object
    *         - INDEX_OUT_OF_BOUNDS if an array index is larger than an array length
    *         - INCORRECT_TYPE if a non-integer is used to access an array
@@ -629,6 +636,7 @@ protected:
   friend class object;
   friend struct simdjson_result<value>;
   friend struct simdjson_result<field>;
+  friend class field;
 };
 
 } // namespace ondemand
@@ -743,6 +751,7 @@ public:
    */
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::ondemand::json_type> type() noexcept;
   simdjson_inline simdjson_result<bool> is_scalar() noexcept;
+  simdjson_inline simdjson_result<bool> is_string() noexcept;
   simdjson_inline simdjson_result<bool> is_negative() noexcept;
   simdjson_inline simdjson_result<bool> is_integer() noexcept;
   simdjson_inline simdjson_result<SIMDJSON_IMPLEMENTATION::number_type> get_number_type() noexcept;

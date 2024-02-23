@@ -1068,6 +1068,24 @@ bool json_pointer_simple() {
     TEST_SUCCEED();
 }
 
+bool json_pointer_unicode() {
+    TEST_START();
+    const padded_string json = u8"{\"\u00E9\":123}"_padded;
+    ondemand::parser parser;
+    ondemand::document doc;
+    int64_t x;
+    ASSERT_SUCCESS(parser.iterate(json).get(doc));
+    ASSERT_SUCCESS(doc.at_pointer((const char*)u8"/\u00E9").get(x));
+    ASSERT_EQUAL(x,123);
+
+    const padded_string json2 = "{\"\\u00E9\":123}"_padded;
+    ASSERT_SUCCESS(parser.iterate(json2).get(doc));
+    ASSERT_SUCCESS(doc.at_pointer("/\\u00E9").get(x));
+    ASSERT_ERROR(doc.at_pointer((const char*)u8"/\u00E9"), NO_SUCH_FIELD);
+    ASSERT_EQUAL(x,123);
+    TEST_SUCCEED();
+}
+
 bool json_path_simple() {
   TEST_START();
   ondemand::parser parser;
@@ -1079,19 +1097,38 @@ bool json_path_simple() {
   TEST_SUCCEED();
 }
 
+bool json_path_unicode() {
+  TEST_START();
+  ondemand::parser parser;
+  ondemand::document doc;
+  const padded_string json = u8"{\"\u00E9\":123}"_padded;
+  int64_t x;
+  ASSERT_SUCCESS(parser.iterate(json).get(doc));
+  ASSERT_SUCCESS(doc.at_path((const char*)u8".\u00E9").get(x));
+  ASSERT_EQUAL(x,123);
+
+  const padded_string json2 = "{\"\\u00E9\":123}"_padded;
+  ASSERT_SUCCESS(parser.iterate(json2).get(doc));
+  ASSERT_SUCCESS(doc.at_path(".\\u00E9").get(x));
+  ASSERT_ERROR(doc.at_path((const char*)u8".\u00E9"), NO_SUCH_FIELD);
+  ASSERT_EQUAL(x,123);
+  TEST_SUCCEED();
+}
+
 bool invalid_json_path() {
   TEST_START();
   ondemand::parser parser;
   ondemand::document cars;
   double x;
   ASSERT_SUCCESS(parser.iterate(cars_json).get(cars));
-  ASSERT_ERROR(cars.at_path("[0].tire_presure[1").get(x), INVALID_JSON_POINTER); // Fails on conversion to json pointer
+  ASSERT_ERROR(cars.at_path("[0].tire_presure[1").get(x), INVALID_JSON_POINTER); // Fails on conversion to JSON Pointer
   ASSERT_ERROR(cars.at_path("[0].incorrect_field[1]").get(x), NO_SUCH_FIELD); // Fails on at_pointer()
   TEST_SUCCEED();
 }
 
 bool json_pointer_multiple() {
 	TEST_START();
+	using namespace std::string_literals;
 	ondemand::parser parser;
 	ondemand::document cars;
 	size_t size;
@@ -1099,7 +1136,7 @@ bool json_pointer_multiple() {
 	ASSERT_SUCCESS(cars.count_elements().get(size));
 	double expected[] = {39.9, 31, 30};
 	for (size_t i = 0; i < size; i++) {
-		std::string json_pointer = std::string("/") + std::to_string(i) + std::string("/tire_pressure/1");
+		std::string json_pointer = "/"s + std::to_string(i) + "/tire_pressure/1"s;
 		double x;
 		ASSERT_SUCCESS(cars.at_pointer(json_pointer).get(x));
 		ASSERT_EQUAL(x,expected[i]);
@@ -1254,6 +1291,38 @@ bool simple_error_example() {
 
 
 #if SIMDJSON_EXCEPTIONS
+
+#include "simdjson.h"
+#include <iostream>
+
+  // prints the content of the array as hexadecimal 64-bit integers
+  void f(simdjson::ondemand::array v) {
+    for(uint64_t val : v) {
+      std::cout << "0x" << std::hex << val << std::endl;
+    }
+  }
+
+
+  int callf(void) {
+    simdjson::padded_string json = R"( [ 897314173811950000, 3122321 ])"_padded;
+    simdjson::ondemand::parser parser;
+    simdjson::ondemand::document doc = parser.iterate(json);
+    f(doc.get_array());
+    return EXIT_SUCCESS;
+  }
+
+  bool key_raw_json_token() {
+    TEST_START();
+    auto json = R"( {"name"   : "Jack The Ripper \u0033"} )"_padded;
+    ondemand::parser parser;
+    ondemand::document doc = parser.iterate(json);
+    for (auto key_value : doc.get_object()) {
+      std::string_view keysv = key_value.key_raw_json_token();
+      ASSERT_EQUAL(keysv,"\"name\"   ");
+    }
+    TEST_SUCCEED();
+  }
+
   bool raw_string() {
     TEST_START();
     auto json = R"( {"name": "Jack The Ripper \u0033"} )"_padded;
@@ -1709,6 +1778,7 @@ bool value_raw_json_object() {
 bool run() {
   return true
 #if SIMDJSON_EXCEPTIONS
+    && key_raw_json_token()
     && to_optional()
     && value_raw_json_array() && value_raw_json_object()
     && gen_raw1() && gen_raw2() && gen_raw3()
@@ -1737,7 +1807,9 @@ bool run() {
 #endif
     && using_the_parsed_json_6()
     && json_pointer_simple()
+    && json_pointer_unicode()
     && json_path_simple()
+    && json_path_unicode()
     && invalid_json_path()
     && json_pointer_multiple()
     && json_path_multiple()
